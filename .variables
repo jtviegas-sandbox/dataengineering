@@ -1,0 +1,24 @@
+# configure aws access
+# you can override these in .local_variables
+# export AWS_DEFAULT_REGION=eu-north-1
+#export AWS_ACCESS_KEY_ID=xpto
+#export AWS_SECRET_ACCESS_KEY=xpto
+
+
+# infrastructure - basic
+export TF_VAR_solution="dataengineering"
+export TF_VAR_region="eu-north-1"
+export TF_VAR_environment="dev"
+export TF_VAR_iac_group="dataengineering_devops"
+export TF_VAR_iac_user="dataengineering_iac"
+export TF_VAR_tfstate_bucket="tfstate-dataengineering"
+export TF_VAR_tfstate_lock_table="tfstate-locktable-dataengineering"
+export TFSTATE_MAIN_KEY="main"
+
+# infrastructure - main
+export TF_VAR_data_bucket="dataengineering-main-data-${TF_VAR_environment}"
+export TF_VAR_users_group="dataengineering_users"
+export TF_VAR_user="dataengineering_user"
+
+
+
