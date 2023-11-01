@@ -49,10 +49,12 @@ module "users_identity" {
   custom_policy = jsonencode(
     {
       "Statement": [ 
-          { "Action": [ "amplify:GetJob", "amplify:ListArtifacts", "amplify:ListJobs" ], 
-          "Effect": "Allow",
-          "Resource": "*"}
-          ],
+          { 
+            "Action": [ "amplify:GetJob", "amplify:ListArtifacts", "amplify:ListJobs" ], 
+            "Effect": "Allow",
+            "Resource": "*"
+          }
+      ],
       "Version": "2012-10-17"
     }
   )
@@ -100,3 +102,4 @@ output "user_access_key" {
   value = module.users_identity.user_access_key
   sensitive = true
 }
+
