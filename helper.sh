@@ -117,6 +117,12 @@ infra_basic()
       iac_access_key_id="$(terraform output iac_access_key_id)"
       add_entry_to_local_variables "AWS_ACCESS_KEY_ID" "${iac_access_key_id}"
       add_entry_to_secrets "AWS_SECRET_ACCESS_KEY" "${iac_access_key}"
+
+      user_access_key="$(terraform output user_access_key)"
+      user_access_key_id="$(terraform output user_access_key_id)"
+      add_entry_to_local_variables "USER_ACCESS_KEY_ID" "${user_access_key_id}"
+      add_entry_to_secrets "USER_SECRET_ACCESS_KEY" "${user_access_key}"
+
     fi
   elif [ "$operation" == "off" ]; then
     # mandatory to use env var AWS_PROFILE (to use a root account) in basic infra setup
@@ -127,6 +133,8 @@ infra_basic()
     if [ "$?" -eq "0" ]; then
       add_entry_to_local_variables "AWS_ACCESS_KEY_ID"
       add_entry_to_secrets "AWS_SECRET_ACCESS_KEY"
+      add_entry_to_local_variables "USER_ACCESS_KEY_ID"
+      add_entry_to_secrets "USER_SECRET_ACCESS_KEY"
     fi
   fi
   rm -rf ./terraform
@@ -151,7 +159,7 @@ infra()
 
     terraform init -upgrade -backend-config="bucket=${TF_VAR_bucket}" \
       -backend-config="key=${TFSTATE_MAIN_KEY}" \
-      -backend-config="region=${TF_VAR_region}"
+      -backend-config="region=${TF_VAR_region}" -backend-config="dynamodb_table=${TF_VAR_tfstate_lock_table}"
     terraform plan
     terraform apply -auto-approve -lock=true -lock-timeout=5m
 
@@ -159,7 +167,7 @@ infra()
 
     terraform init -upgrade -backend-config="bucket=${TF_VAR_bucket}" \
       -backend-config="key=${TFSTATE_MAIN_KEY}" \
-      -backend-config="region=${TF_VAR_region}"
+      -backend-config="region=${TF_VAR_region}" -backend-config="dynamodb_table=${TF_VAR_tfstate_lock_table}"
     terraform destroy -lock=true -lock-timeout=5m -auto-approve
 
   fi
