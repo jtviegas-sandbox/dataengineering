@@ -92,55 +92,45 @@ INFRA_DIR="$this_folder/infrastructure"
 
 # ---------- LOCAL FUNCTIONS ----------
 
-infra_basic()
+infra_base()
 {
-  info "[infra_basic|in] (operation=$1)"
+  info "[infra_base|in] (operation=$1)"
 
   local operation="$1"
 
   [ "$operation" != "on" ] && [ "$operation" != "off" ] && usage
 
-  local tf_dir="${INFRA_DIR}/basic"
+  local tf_dir="${INFRA_DIR}/base"
 
   _pwd=`pwd`
   cd "$tf_dir"
 
+  # mandatory to use an AWS_PROFILE with an owner/super root account that should be deleted afterwards
+  set AWS_PROFILE="$AWS_DEFAULT_PROFILE"
+  unset AWS_ACCESS_KEY_ID
+  unset AWS_SECRET_ACCESS_KEY
+
   if [ "$operation" == "on" ]; then
-    # mandatory to use env var AWS_PROFILE (to use a root account) in basic infra setup
-    unset AWS_ACCESS_KEY_ID
-    unset AWS_SECRET_ACCESS_KEY
-    terraform init
+    terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${AWS_DEFAULT_REGION}" -backend-config="dynamodb_table=${TFSTATE_LOCK_TABLE}"
     terraform plan
     terraform apply -auto-approve -lock=true -lock-timeout=5m
     if [ "$?" -eq "0" ]; then
-      iac_access_key="$(terraform output iac_access_key)"
-      iac_access_key_id="$(terraform output iac_access_key_id)"
-      add_entry_to_local_variables "AWS_ACCESS_KEY_ID" "${iac_access_key_id}"
-      add_entry_to_secrets "AWS_SECRET_ACCESS_KEY" "${iac_access_key}"
+      access_key="$(terraform output access_key)"
+      access_key_id="$(terraform output access_key_id)"
 
-      user_access_key="$(terraform output user_access_key)"
-      user_access_key_id="$(terraform output user_access_key_id)"
-      add_entry_to_local_variables "USER_ACCESS_KEY_ID" "${user_access_key_id}"
-      add_entry_to_secrets "USER_SECRET_ACCESS_KEY" "${user_access_key}"
-
+      aws configure --profile "$AWS_SOLUTION_PROFILE" set region "$AWS_DEFAULT_REGION"
+      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_access_key_id "$access_key_id"
+      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_secret_access_key "$access_key"
     fi
   elif [ "$operation" == "off" ]; then
-    # mandatory to use env var AWS_PROFILE (to use a root account) in basic infra setup
-    unset AWS_ACCESS_KEY_ID
-    unset AWS_SECRET_ACCESS_KEY
-    terraform init
+    terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${AWS_DEFAULT_REGION}" -backend-config="dynamodb_table=${TFSTATE_LOCK_TABLE}"
     terraform destroy -lock=true -lock-timeout=5m -auto-approve
-    if [ "$?" -eq "0" ]; then
-      add_entry_to_local_variables "AWS_ACCESS_KEY_ID"
-      add_entry_to_secrets "AWS_SECRET_ACCESS_KEY"
-      add_entry_to_local_variables "USER_ACCESS_KEY_ID"
-      add_entry_to_secrets "USER_SECRET_ACCESS_KEY"
-    fi
   fi
+
   rm -rf ./terraform
   cd "$_pwd"
 
-  info "[infra_basic|out]"
+  info "[infra_base|out]"
 }
 
 infra()
@@ -186,13 +176,15 @@ usage() {
       options:
       - package                 : tars the bashutils include file
       - update_bashutils        : updates the include '.bashutils' file
-      - infra_basic {on|off}    : manages basic infrastructure (iac user and tf remote state)
+      - infra_base {on|off}    : manages base infrastructure (solution root user)
       - infra {on|off}          : manages main solution infrastructure
 EOM
   exit 1
 }
 
 debug "1: $1 2: $2 3: $3 4: $4 5: $5 6: $6 7: $7 8: $8 9: $9"
+
+info "current aws profile: ${AWS_PROFILE}"
 
 case "$1" in
   package)
@@ -201,8 +193,8 @@ case "$1" in
   update_bashutils)
     update_bashutils
     ;;
-  infra_basic)
-    infra_basic "$2"
+  infra_base)
+    infra_base "$2"
     ;;
   infra)
     infra "$2"
