@@ -94,13 +94,29 @@ INFRA_DIR="$this_folder/infrastructure"
 
 infra_base()
 {
-  info "[infra_base|in] (operation=$1)"
+  info "[infra_base|in] (tool=$1) (operation=$2)"
 
-  local operation="$1"
+  local tool="$1" 
+  [ "$tool" != "tf" ] && [ "$operation" != "cdk" ] && usage
 
+  local operation="$2"
   [ "$operation" != "on" ] && [ "$operation" != "off" ] && usage
 
-  local tf_dir="${INFRA_DIR}/base"
+  if [ "$tool" != "tf" ]; then
+    infra_base_tf "$operation"
+  else
+    infra_base_cdk "$operation"
+  fi
+
+  info "[infra_base|out]"
+}
+
+infra_base_tf()
+{
+  info "[infra_base_tf|in] (operation=$1)"
+
+  local operation="$1"
+  local tf_dir="${INFRA_DIR}/terraform/base"
 
   _pwd=`pwd`
   cd "$tf_dir"
@@ -130,17 +146,79 @@ infra_base()
   rm -rf ./terraform
   cd "$_pwd"
 
-  info "[infra_base|out]"
+  info "[infra_base_tf|out]"
+}
+
+infra_base_cdk()
+{
+  info "[infra_base_cdk|in] (operation=$1)"
+
+  local operation="$1"
+  local tf_dir="${INFRA_DIR}/cdk/base"
+
+  _pwd=`pwd`
+  cd "$tf_dir"
+
+  # mandatory to use an AWS_PROFILE with an owner/super root account that should be deleted afterwards
+  set AWS_PROFILE="$AWS_DEFAULT_PROFILE"
+  unset AWS_ACCESS_KEY_ID
+  unset AWS_SECRET_ACCESS_KEY
+
+  if [ "$operation" == "on" ]; then
+
+      aws configure --profile "$AWS_SOLUTION_PROFILE" set region "$AWS_DEFAULT_REGION"
+      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_access_key_id "$access_key_id"
+      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_secret_access_key "$access_key"
+
+  elif [ "$operation" == "off" ]; then
+
+  fi
+
+  cd "$_pwd"
+
+  info "[infra_base_tf|out]"
+}
+
+
+setup_cdk()
+{
+  info "[setup_cdk|in]"
+  which node
+  if [ "0" -ne "$?" ]; then
+    err "[setup_cdk] have to install node" && return 1
+  fi
+  sudo npm install -g aws-cdk
+  cdk -h
+  result=$?
+  info "[setup_cdk|out] => $result"
+  return $result
 }
 
 infra()
 {
-  info "[infra|in] (operation=$1)"
+  info "[infra|in] (tool=$1) (operation=$2)"
 
-  local operation="$1"
+  local tool="$1" 
+  [ "$tool" != "tf" ] && [ "$operation" != "cdk" ] && usage
+
+  local operation="$2"
   [ "$operation" != "on" ] && [ "$operation" != "off" ] && usage
 
-  local tf_dir="${INFRA_DIR}"
+  if [ "$tool" != "tf" ]; then
+    infra_tf "$operation"
+  else
+    infra_cdk "$operation"
+  fi
+
+  info "[infra|out]"
+}
+
+infra_tf()
+{
+  info "[infra_tf|in] (operation=$1)"
+
+  local operation="$1"
+  local tf_dir="${INFRA_DIR}/terraform"
 
   _pwd=`pwd`
   cd "$tf_dir"
@@ -164,7 +242,45 @@ infra()
   rm -rf ./terraform
   cd "$_pwd"
 
-  info "[infra|out]"
+  info "[infra_tf|out]"
+}
+
+infra_cdk()
+{
+  info "[infra_cdk|in] (operation=$1)"
+
+  local operation="$1"
+  local tf_dir="${INFRA_DIR}/cdk"
+
+  _pwd=`pwd`
+  cd "$tf_dir"
+
+  if [ "$operation" == "on" ]; then
+
+  elif [ "$operation" == "off" ]; then
+
+  fi
+
+  cd "$_pwd"
+
+  info "[infra_cdk|out]"
+}
+
+commands() {
+  cat <<EOM
+
+  handy commands:
+
+  cdk init app --language typescript  create new cdk app on typescript
+  npm run build                       compile typescript to js
+  npm run watch                       watch for changes and compile
+  npm run test                        perform the jest unit tests
+  cdk deploy                          deploy this stack to your default AWS account/region
+  cdk diff                            compare deployed stack with current state
+  cdk synth                           emits the synthesized CloudFormation template
+  aws cloudformation delete-stack --stack-name CDKToolkit   delete to later recreate with bootstrap (see https://stackoverflow.com/questions/71280758/aws-cdk-bootstrap-itself-broken/71283964#71283964)
+  cdk init app --language typescript
+EOM
 }
 
 
@@ -174,10 +290,10 @@ usage() {
   usage:
   $(basename $0) { OPTION }
       options:
-      - package                 : tars the bashutils include file
-      - update_bashutils        : updates the include '.bashutils' file
-      - infra_base {on|off}    : manages base infrastructure (solution root user)
-      - infra {on|off}          : manages main solution infrastructure
+      - package                         : tars the bashutils include file
+      - update_bashutils                : updates the include '.bashutils' file
+      - infra_base {tf|cdk} {on|off}    : manages base infrastructure (solution root user)
+      - infra {tf|cdk} {on|off}         : manages main solution infrastructure
 EOM
   exit 1
 }
@@ -194,10 +310,13 @@ case "$1" in
     update_bashutils
     ;;
   infra_base)
-    infra_base "$2"
+    infra_base "$2" "$3"
     ;;
   infra)
-    infra "$2"
+    infra "$2" "$3"
+    ;;
+  setup_cdk)
+    setup_cdk
     ;;
   *)
     usage
