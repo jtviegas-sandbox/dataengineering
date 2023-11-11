@@ -92,94 +92,6 @@ INFRA_DIR="$this_folder/infrastructure"
 
 # ---------- LOCAL FUNCTIONS ----------
 
-infra_base()
-{
-  info "[infra_base|in] (tool=$1) (operation=$2)"
-
-  local tool="$1" 
-  [ "$tool" != "tf" ] && [ "$operation" != "cdk" ] && usage
-
-  local operation="$2"
-  [ "$operation" != "on" ] && [ "$operation" != "off" ] && usage
-
-  if [ "$tool" != "tf" ]; then
-    infra_base_tf "$operation"
-  else
-    infra_base_cdk "$operation"
-  fi
-
-  info "[infra_base|out]"
-}
-
-infra_base_tf()
-{
-  info "[infra_base_tf|in] (operation=$1)"
-
-  local operation="$1"
-  local tf_dir="${INFRA_DIR}/terraform/base"
-
-  _pwd=`pwd`
-  cd "$tf_dir"
-
-  # mandatory to use an AWS_PROFILE with an owner/super root account that should be deleted afterwards
-  set AWS_PROFILE="$AWS_DEFAULT_PROFILE"
-  unset AWS_ACCESS_KEY_ID
-  unset AWS_SECRET_ACCESS_KEY
-
-  if [ "$operation" == "on" ]; then
-    terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${AWS_DEFAULT_REGION}" -backend-config="dynamodb_table=${TFSTATE_LOCK_TABLE}"
-    terraform plan
-    terraform apply -auto-approve -lock=true -lock-timeout=5m
-    if [ "$?" -eq "0" ]; then
-      access_key="$(terraform output access_key)"
-      access_key_id="$(terraform output access_key_id)"
-
-      aws configure --profile "$AWS_SOLUTION_PROFILE" set region "$AWS_DEFAULT_REGION"
-      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_access_key_id "$access_key_id"
-      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_secret_access_key "$access_key"
-    fi
-  elif [ "$operation" == "off" ]; then
-    terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${AWS_DEFAULT_REGION}" -backend-config="dynamodb_table=${TFSTATE_LOCK_TABLE}"
-    terraform destroy -lock=true -lock-timeout=5m -auto-approve
-  fi
-
-  rm -rf ./terraform
-  cd "$_pwd"
-
-  info "[infra_base_tf|out]"
-}
-
-infra_base_cdk()
-{
-  info "[infra_base_cdk|in] (operation=$1)"
-
-  local operation="$1"
-  local tf_dir="${INFRA_DIR}/cdk/base"
-
-  _pwd=`pwd`
-  cd "$tf_dir"
-
-  # mandatory to use an AWS_PROFILE with an owner/super root account that should be deleted afterwards
-  set AWS_PROFILE="$AWS_DEFAULT_PROFILE"
-  unset AWS_ACCESS_KEY_ID
-  unset AWS_SECRET_ACCESS_KEY
-
-  if [ "$operation" == "on" ]; then
-
-      aws configure --profile "$AWS_SOLUTION_PROFILE" set region "$AWS_DEFAULT_REGION"
-      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_access_key_id "$access_key_id"
-      aws configure --profile "$AWS_SOLUTION_PROFILE" set aws_secret_access_key "$access_key"
-
-  elif [ "$operation" == "off" ]; then
-
-  fi
-
-  cd "$_pwd"
-
-  info "[infra_base_tf|out]"
-}
-
-
 setup_cdk()
 {
   info "[setup_cdk|in]"
@@ -196,74 +108,42 @@ setup_cdk()
 
 infra()
 {
-  info "[infra|in] (tool=$1) (operation=$2)"
+  info "[infra|in] (operation=$1)"
 
-  local tool="$1" 
-  [ "$tool" != "tf" ] && [ "$operation" != "cdk" ] && usage
+  local operation="$1"
+  local tf_dir="${INFRA_DIR}"
 
-  local operation="$2"
-  [ "$operation" != "on" ] && [ "$operation" != "off" ] && usage
+  [ "$operation" != "on" ] && [ "$operation" != "off" ] && usage 
 
-  if [ "$tool" != "tf" ]; then
-    infra_tf "$operation"
-  else
-    infra_cdk "$operation"
+  _pwd=`pwd`
+  cd "$tf_dir"
+
+  aws configure --profile "$AWS_PROFILE" set region "$AWS_DEFAULT_REGION"
+  aws configure --profile "$AWS_PROFILE" set aws_access_key_id "$AWS_KEY_ID"
+  aws configure --profile "$AWS_PROFILE" set aws_secret_access_key "$AWS_KEY"
+
+  if [ "$operation" == "on" ]; then
+    cdk synth
+    [ "$?" -ne "0" ] && err "[infra] couldn't synth" && cd "$_pwd" && exit 1
+    cdk deploy --require-approval=never
+    [ "$?" -ne "0" ] && err "[infra] couldn't deploy" && cd "$_pwd" && exit 1
+  elif [ "$operation" == "off" ]; then
+    cdk destroy --force
+    [ "$?" -ne "0" ] && err "[infra] couldn't destroy" && cd "$_pwd" && exit 1
   fi
 
+  cd "$_pwd"
   info "[infra|out]"
 }
 
-infra_tf()
+cdk_bootstrap()
 {
-  info "[infra_tf|in] (operation=$1)"
-
-  local operation="$1"
-  local tf_dir="${INFRA_DIR}/terraform"
-
-  _pwd=`pwd`
-  cd "$tf_dir"
-
-  if [ "$operation" == "on" ]; then
-
-    terraform init -upgrade -backend-config="bucket=${TF_VAR_bucket}" \
-      -backend-config="key=${TFSTATE_MAIN_KEY}" \
-      -backend-config="region=${TF_VAR_region}" -backend-config="dynamodb_table=${TF_VAR_tfstate_lock_table}"
-    terraform plan
-    terraform apply -auto-approve -lock=true -lock-timeout=5m
-
-  elif [ "$operation" == "off" ]; then
-
-    terraform init -upgrade -backend-config="bucket=${TF_VAR_bucket}" \
-      -backend-config="key=${TFSTATE_MAIN_KEY}" \
-      -backend-config="region=${TF_VAR_region}" -backend-config="dynamodb_table=${TF_VAR_tfstate_lock_table}"
-    terraform destroy -lock=true -lock-timeout=5m -auto-approve
-
-  fi
-  rm -rf ./terraform
-  cd "$_pwd"
-
-  info "[infra_tf|out]"
-}
-
-infra_cdk()
-{
-  info "[infra_cdk|in] (operation=$1)"
-
-  local operation="$1"
-  local tf_dir="${INFRA_DIR}/cdk"
-
-  _pwd=`pwd`
-  cd "$tf_dir"
-
-  if [ "$operation" == "on" ]; then
-
-  elif [ "$operation" == "off" ]; then
-
-  fi
-
-  cd "$_pwd"
-
-  info "[infra_cdk|out]"
+  info "[cdk_bootstrap|in]"
+  #aws cloudformation delete-stack --stack-name CDKToolkit
+  cdk bootstrap
+  result=$?
+  info "[cdk_bootstrap|out] => $result"
+  return $result
 }
 
 commands() {
@@ -290,10 +170,11 @@ usage() {
   usage:
   $(basename $0) { OPTION }
       options:
-      - package                         : tars the bashutils include file
-      - update_bashutils                : updates the include '.bashutils' file
-      - infra_base {tf|cdk} {on|off}    : manages base infrastructure (solution root user)
-      - infra {tf|cdk} {on|off}         : manages main solution infrastructure
+      - commands              : handy commands
+      - package               : tars the bashutils include file
+      - update_bashutils      : updates the include '.bashutils' file
+      - infra {on|off}        : manages solution infrastructure with cdk
+      - setup_cdk             : sets up aws cdk cli and solution dependencies
 EOM
   exit 1
 }
@@ -303,17 +184,17 @@ debug "1: $1 2: $2 3: $3 4: $4 5: $5 6: $6 7: $7 8: $8 9: $9"
 info "current aws profile: ${AWS_PROFILE}"
 
 case "$1" in
+  commands)
+    commands
+    ;;
   package)
     package
     ;;
   update_bashutils)
     update_bashutils
     ;;
-  infra_base)
-    infra_base "$2" "$3"
-    ;;
   infra)
-    infra "$2" "$3"
+    infra "$2"
     ;;
   setup_cdk)
     setup_cdk

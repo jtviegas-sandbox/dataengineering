@@ -1,26 +1,8 @@
 export SOLUTION="dataengineering"
-
-export AWS_DEFAULT_PROFILE=tgedr_root
-export AWS_DEFAULT_REGION="eu-north-1"
-export AWS_SOLUTION_PROFILE="${SOLUTION}_root"
-export TF_VAR_environment="dev"
+export ENVIRONMENT="dev"
 
 # configure aws access
-export AWS_PROFILE="$AWS_SOLUTION_PROFILE"
-
-# terraform state
-export TFSTATE_KEY="$SOLUTION"
-export TFSTATE_BUCKET="tfstate-tgedr-it"
-export TFSTATE_LOCK_TABLE="tfstate-lock-tgedr-it"
-
-# infrastructure - base
-export TF_VAR_solution="$SOLUTION"
-export TF_VAR_region="$AWS_DEFAULT_REGION"
-export TF_VAR_account="dataengineering_root"
-
-# infrastructure - main
-export TF_VAR_datalake_bucket="dataeng-datalake-${TF_VAR_environment}"
-
-
-
-
+export AWS_PROFILE=tgedr_root   # you may override this in .local_variables
+export AWS_DEFAULT_REGION="eu-north-1"
+# export AWS_KEY_ID=TO_BE_DEFINED_IN___DOT_SECRETS
+# export AWS_KEY=TO_BE_DEFINED_IN___DOT_SECRETS
