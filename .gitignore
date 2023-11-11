@@ -196,5 +196,5 @@ terraform.rc
 
 .local_variables
 .secrets
-
+!infrastructure/lib
 
