@@ -198,3 +198,4 @@ terraform.rc
 .secrets
 !infrastructure/lib
 
+.vscode/

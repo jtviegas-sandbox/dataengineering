@@ -118,9 +118,9 @@ infra()
   _pwd=`pwd`
   cd "$tf_dir"
 
-  aws configure --profile "$AWS_PROFILE" set region "$AWS_DEFAULT_REGION"
-  aws configure --profile "$AWS_PROFILE" set aws_access_key_id "$AWS_KEY_ID"
-  aws configure --profile "$AWS_PROFILE" set aws_secret_access_key "$AWS_KEY"
+  #aws configure --profile "$AWS_PROFILE" set region "$AWS_DEFAULT_REGION"
+  #aws configure --profile "$AWS_PROFILE" set aws_access_key_id "$AWS_KEY_ID"
+  #aws configure --profile "$AWS_PROFILE" set aws_secret_access_key "$AWS_KEY"
 
   if [ "$operation" == "on" ]; then
     cdk synth
@@ -146,6 +146,7 @@ cdk_bootstrap()
   return $result
 }
 
+
 commands() {
   cat <<EOM
 
@@ -160,6 +161,7 @@ commands() {
   cdk synth                           emits the synthesized CloudFormation template
   aws cloudformation delete-stack --stack-name CDKToolkit   delete to later recreate with bootstrap (see https://stackoverflow.com/questions/71280758/aws-cdk-bootstrap-itself-broken/71283964#71283964)
   cdk init app --language typescript
+  aws lambda invoke --function-name FUNCTION_NAME out --log-type Tail 
 EOM
 }
 
@@ -175,6 +177,7 @@ usage() {
       - update_bashutils      : updates the include '.bashutils' file
       - infra {on|off}        : manages solution infrastructure with cdk
       - setup_cdk             : sets up aws cdk cli and solution dependencies
+
 EOM
   exit 1
 }
