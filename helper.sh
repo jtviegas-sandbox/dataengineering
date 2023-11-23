@@ -162,6 +162,8 @@ commands() {
   aws cloudformation delete-stack --stack-name CDKToolkit   delete to later recreate with bootstrap (see https://stackoverflow.com/questions/71280758/aws-cdk-bootstrap-itself-broken/71283964#71283964)
   cdk init app --language typescript
   aws lambda invoke --function-name FUNCTION_NAME out --log-type Tail 
+  jupyter notebook --log-level=40     starts jupyter server
+  
 EOM
 }
 
