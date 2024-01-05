@@ -56,10 +56,11 @@ export class DataEngineeringStack extends Stack {
     const CURRENT_ACCOUNT = new iam.AccountPrincipal(Stack.of(this).account)
 
     // -------------------------------------------------------------------------
-    // --- data lake layers ---
+    // ------------------------------------------------- # data layers
+    // ------------------------------------------ # data groups
     this.readers = new Group(this, props.readers);
     this.writers = new Group(this, props.writers);
-    
+    // ------------------------------------------ # layers as buckets
     this.layers = {
       landing: new Bucket(this, `${id}-landing`, {
         bucketName: `tgedr-de-landing-${props.env.name}`,
